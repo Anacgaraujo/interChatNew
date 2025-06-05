@@ -1,0 +1,17 @@
+{
+  "cli": {
+    "version": ">=3.0.0"
+  },
+  "build": {
+    "production": {
+      "ios": {}
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "your-apple-id@example.com"
+      }
+    }
+  }
+}
