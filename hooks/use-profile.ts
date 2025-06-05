@@ -7,9 +7,10 @@ export function useProfile() {
 
   const clerkId = user?.id;
 
-  if (!clerkId) {
-    return null;
-  }
+  const profile = useQuery(
+    api.users.getUserByClerkId,
+    clerkId ? { clerkId } : "skip"
+  );
 
-  return useQuery(api.users.getUserByClerkId, { clerkId });
+  return profile ?? null;
 }
