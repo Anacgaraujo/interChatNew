@@ -1,3 +1,4 @@
+//app/(protected)/(modals)/new-chat.tsx
 import { useTheme } from "@/context/theme-context";
 import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";

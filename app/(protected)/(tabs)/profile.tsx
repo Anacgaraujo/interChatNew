@@ -170,6 +170,7 @@ const Profile = () => {
                 title="Username"
                 subTitle={user?.username}
                 showArrow={false}
+                // preferredLanguage={use?.preferredLanguage}
               />
               <View
                 style={{ height: StyleSheet.hairlineWidth }}

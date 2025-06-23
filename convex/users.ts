@@ -1,7 +1,29 @@
+//convex/users.ts
 import { v } from "convex/values";
 import { internalMutation, query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
 import { getMedialURL } from "./general";
+
+import { mutation } from "./_generated/server";
+
+export const createUserIfMissing = mutation(async (ctx) => {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) throw new Error("Not authenticated");
+
+  const existingUser = await ctx.db
+    .query("users")
+    .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+    .unique();
+
+  if (existingUser) return;
+
+  await ctx.db.insert("users", {
+    clerkId: identity.subject,
+    email: identity.email ?? "",
+    name: identity.name ?? identity.subject,
+    imageUrl: identity.pictureUrl,
+  });
+});
 
 export const createUser = internalMutation({
   args: {
@@ -10,6 +32,7 @@ export const createUser = internalMutation({
     name: v.string(),
     imageUrl: v.optional(v.string()),
     username: v.optional(v.string()),
+    preferredLanguage: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const existingUsername = await ctx.db

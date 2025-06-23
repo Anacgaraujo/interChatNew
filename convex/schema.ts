@@ -1,3 +1,4 @@
+//convex/schema.ts
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
@@ -12,6 +13,7 @@ export default defineSchema({
     lastSeen: v.optional(v.number()),
     isOnline: v.optional(v.boolean()),
     friends: v.optional(v.array(v.string())),
+    preferredLanguage: v.optional(v.string()),
   })
     .index("by_clerk_id", ["clerkId"])
     .index("by_username", ["username"])
