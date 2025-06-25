@@ -17,6 +17,8 @@ import {
   StyleSheet,
   Alert,
   Platform,
+  Modal,
+  FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -73,11 +75,86 @@ const SettingItem = ({
     </TouchableOpacity>
   );
 };
+
+import { useState } from "react";
+// Define interfaces for better type safety
+interface LanguageItem {
+  code: string;
+  name: string;
+}
+
+interface LanguagePickerProps {
+  visible: boolean;
+  onClose: () => void;
+  onSelectLanguage: (language: LanguageItem) => void;
+  languages: LanguageItem[]; // Pass languages as a prop
+}
+
+// LanguagePicker component (moved outside Profile)
+const LanguagePicker = ({
+  visible,
+  onClose,
+  onSelectLanguage,
+  languages,
+}: LanguagePickerProps) => {
+  const { isDark } = useTheme();
+  return (
+    <Modal
+      transparent={true}
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableOpacity
+        style={StyleSheet.absoluteFillObject}
+        className="items-center justify-center bg-black/50"
+        onPress={onClose}
+      >
+        <View
+          className={`w-3/4 rounded-lg p-4 ${isDark ? "bg-gray-800" : "bg-white"}`}
+          onStartShouldSetResponder={() => true} // Prevent touch from closing modal
+        >
+          <Text
+            className={`text-lg font-bold mb-4 ${isDark ? "text-white" : "text-black"}`}
+          >
+            Select Language
+          </Text>
+          <FlatList
+            data={languages}
+            keyExtractor={(item) => item.code}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                className="py-3"
+                onPress={() => {
+                  onSelectLanguage(item);
+                  onClose();
+                }}
+              >
+                <Text
+                  className={`text-base ${isDark ? "text-gray-200" : "text-gray-800"}`}
+                >
+                  {item.name}
+                </Text>
+              </TouchableOpacity>
+            )}
+            ItemSeparatorComponent={() => (
+              <View
+                className={`h-[1px] ${isDark ? "bg-gray-700" : "bg-gray-200"}`}
+              />
+            )}
+          />
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
 const Profile = () => {
   const { isDark, theme, setTheme } = useTheme();
   const user = useProfile();
   const { signOut } = useAuth();
   const updateUser = useMutation(api.users.updateUser);
+  const [showLanguagePicker, setShowLanguagePicker] = useState(false);
 
   const languages = [
     { code: "en", name: "English" },
@@ -118,11 +195,7 @@ const Profile = () => {
         }
       );
     } else {
-      // On Android, you can implement a custom modal for selection.
-      Alert.alert(
-        "Note",
-        "Language selection UI for Android can be added here."
-      );
+      setShowLanguagePicker(true);
     }
   };
 
@@ -140,7 +213,7 @@ const Profile = () => {
   const preferredLanguageName = useMemo(() => {
     const lang = languages.find((l) => l.code === user?.preferredLanguage);
     return lang ? lang.name : "Not Set";
-  }, [user?.preferredLanguage]);
+  }, [languages, user?.preferredLanguage]);
 
   const handleTheme = () => {
     switch (theme) {
@@ -293,6 +366,19 @@ const Profile = () => {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <LanguagePicker
+        visible={showLanguagePicker}
+        onClose={() => setShowLanguagePicker(false)}
+        languages={languages} // Pass languages to the picker
+        onSelectLanguage={async (selectedLanguage) => {
+          await updateUser({ preferredLanguage: selectedLanguage.code });
+          Alert.alert(
+            "Success",
+            `Language updated to ${selectedLanguage.name}`
+          );
+        }}
+      />
     </SafeAreaView>
   );
 };
