@@ -8,14 +8,26 @@ import { Loader } from "@/components/loader";
 import { NewChatButton } from "@/components/new-chat-button";
 import { Stories } from "@/components/stories";
 import { useTheme } from "@/context/theme-context";
+import { Doc, Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
+
+// Define an interface for the detailed chat object returned by getChats
+interface ChatWithDetails extends Doc<"chats"> {
+  name: string;
+  image: string | undefined;
+  lastMessage: Doc<"messages"> | null;
+  participantsInfo: (Doc<"users"> | null)[];
+  unreadCount: number;
+}
 
 const Index = () => {
   const { isDark } = useTheme();
-  const chats = useQuery(api.chats.getChats, {});
+  const chats = useQuery(api.chats.getChats, {}) as
+    | ChatWithDetails[]
+    | undefined;
   const isLoading = chats === undefined;
 
-  const formattedChats = chats?.map((chat) => ({
+  const formattedChats = chats?.map((chat: ChatWithDetails) => ({
     _id: chat._id,
     name: chat.name,
     image: chat.image,

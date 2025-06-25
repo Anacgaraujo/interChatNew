@@ -1,18 +1,22 @@
 import { useTheme } from "@/context/theme-context";
 import { NoImage } from "@/dummyData";
 import { useProfile } from "@/hooks/use-profile";
+import { api } from "@/convex/_generated/api";
 import { useAuth } from "@clerk/clerk-expo";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useMutation } from "convex/react";
 import { router } from "expo-router";
 import { useMemo } from "react";
 import {
+  ActionSheetIOS,
   Image,
   ScrollView,
   Text,
-  Touchable,
   TouchableOpacity,
   View,
   StyleSheet,
+  Alert,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -73,6 +77,54 @@ const Profile = () => {
   const { isDark, theme, setTheme } = useTheme();
   const user = useProfile();
   const { signOut } = useAuth();
+  const updateUser = useMutation(api.users.updateUser);
+
+  const languages = [
+    { code: "en", name: "English" },
+    { code: "es", name: "Spanish" },
+    { code: "fr", name: "French" },
+    { code: "de", name: "German" },
+    { code: "pt", name: "Portuguese" },
+  ];
+
+  const handleSelectLanguage = () => {
+    // ActionSheetIOS is for iOS. For a cross-platform solution,
+    // you might use a library like 'react-native-modal' or a custom component.
+    if (Platform.OS === "ios") {
+      const options = [...languages.map((l) => l.name), "Cancel"];
+      const cancelButtonIndex = options.length - 1;
+
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          cancelButtonIndex,
+          title: "Select Preferred Language",
+        },
+        (buttonIndex) => {
+          if (buttonIndex !== undefined && buttonIndex !== cancelButtonIndex) {
+            const selectedLanguage = languages[buttonIndex];
+            updateUser({ preferredLanguage: selectedLanguage.code })
+              .then(() => {
+                Alert.alert(
+                  "Success",
+                  `Language updated to ${selectedLanguage.name}`
+                );
+              })
+              .catch((err) => {
+                console.error(err);
+                Alert.alert("Error", "Failed to update language.");
+              });
+          }
+        }
+      );
+    } else {
+      // On Android, you can implement a custom modal for selection.
+      Alert.alert(
+        "Note",
+        "Language selection UI for Android can be added here."
+      );
+    }
+  };
 
   const themeText = useMemo(() => {
     switch (theme) {
@@ -84,6 +136,11 @@ const Profile = () => {
         return "Light";
     }
   }, [theme]);
+
+  const preferredLanguageName = useMemo(() => {
+    const lang = languages.find((l) => l.code === user?.preferredLanguage);
+    return lang ? lang.name : "Not Set";
+  }, [user?.preferredLanguage]);
 
   const handleTheme = () => {
     switch (theme) {
@@ -181,6 +238,17 @@ const Profile = () => {
                 title="Email"
                 subTitle={user?.email}
                 showArrow={false}
+              />
+              <View
+                style={{ height: StyleSheet.hairlineWidth }}
+                className={`${isDark ? "bg-gray-800" : "bg-gray-200"}`}
+              />
+              <SettingItem
+                icon="translate"
+                title="Preferred Language"
+                subTitle={preferredLanguageName}
+                showArrow={true}
+                onPress={handleSelectLanguage}
               />
               <View
                 style={{ height: StyleSheet.hairlineWidth }}

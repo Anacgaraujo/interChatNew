@@ -68,8 +68,7 @@ const NewChat = () => {
           source={{
             uri:
               item.imageUrl ||
-              "https://ui-avatars.com/api/?name=sfsf" +
-                encodeURIComponent(item.name),
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}`,
           }}
           className="w-12 h-12 rounded-full"
         />

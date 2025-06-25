@@ -1,53 +1,51 @@
-//convex/schema.ts
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // You should already have a 'users' table.
+  // Add the 'preferredLanguage' field to it.
   users: defineTable({
     name: v.string(),
-    email: v.string(),
-    clerkId: v.string(),
-    imageUrl: v.optional(v.string()),
     username: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    email: v.string(),
+    externalId: v.string(),
+    isOnline: v.boolean(),
     phoneNumber: v.optional(v.string()),
     lastSeen: v.optional(v.number()),
-    isOnline: v.optional(v.boolean()),
-    friends: v.optional(v.array(v.string())),
+    // Add this new field for language preference
+    friends: v.array(v.id("users")), // Add this field
     preferredLanguage: v.optional(v.string()),
   })
-    .index("by_clerk_id", ["clerkId"])
-    .index("by_username", ["username"])
-    .index("by_email", ["email"])
-    .index("by_phone_number", ["phoneNumber"]),
+    .index("by_externalId", ["externalId"])
+    .index("by_username", ["username"]) // Add this index
+    .index("by_email", ["email"]), // Add this index
 
-  // chat
+  // You likely have a 'chats' table like this. No changes needed here.
   chats: defineTable({
-    name: v.string(),
-    description: v.optional(v.string()),
+    participants: v.array(v.id("users")),
     isGroup: v.boolean(),
-    participants: v.array(v.string()),
-    createdBy: v.string(),
-    createdAt: v.number(),
-    updatedAt: v.number(),
+    name: v.optional(v.string()), // Add this field
+    image: v.optional(v.string()), // Add this field
     combinedUserIds: v.optional(v.string()),
-    image: v.optional(v.string()),
   })
-    .index("by_combined_user_ids", ["combinedUserIds"])
-    .index("by_participants", ["participants"])
-    .index("by_updated_at", ["updatedAt"]),
+    .index("by_participants", ["participants"]) // Add this index
+    .index("by_combinedUserIds", ["combinedUserIds"]), // Add this index
 
-  // messages
+  // You likely have a 'messages' table. No changes needed here.
   messages: defineTable({
-    chatId: v.string(),
-    text: v.optional(v.string()),
+    content: v.string(),
+    chatId: v.id("chats"),
+    userId: v.id("users"),
     media: v.optional(
       v.array(
         v.object({
-          storageId: v.string(),
+          // Added media field
+          storageId: v.id("_storage"),
           type: v.string(),
-          mimeType: v.optional(v.string()),
-          fileSize: v.optional(v.number()),
           fileName: v.optional(v.string()),
+          fileSize: v.optional(v.number()),
+          mimeType: v.optional(v.string()),
           duration: v.optional(v.number()),
           dimensions: v.optional(
             v.object({
@@ -58,48 +56,42 @@ export default defineSchema({
         })
       )
     ),
-    userId: v.string(),
-    createdAt: v.number(),
-  }).index("by_chat_id", ["chatId"]),
+  }).index("by_chatId", ["chatId"]), // Add this index
 
-  // Stories table
+  // All table definitions must be properties of the object passed to defineSchema
+  translations: defineTable({
+    // Create this new table to store translations.
+    messageId: v.id("messages"), // This acts as a cache to avoid re-translating messages.
+    language: v.string(),
+    text: v.string(),
+  }).index("by_messageId_and_language", ["messageId", "language"]),
+
   stories: defineTable({
-    userId: v.string(),
+    userId: v.id("users"),
     type: v.union(v.literal("image"), v.literal("video"), v.literal("text")),
     content: v.object({
-      storageId: v.string(),
+      storageId: v.id("_storage"),
       duration: v.optional(v.number()),
-      dimensions: v.optional(
-        v.object({
-          width: v.number(),
-          height: v.number(),
-        })
-      ),
+      dimensions: v.object({
+        width: v.number(),
+        height: v.number(),
+      }),
     }),
-    createdAt: v.number(),
-    expiresAt: v.number(), // Stories typically expire after 24 hours
-    viewers: v.array(v.string()), // Array of user IDs who have viewed the story
-    isActive: v.boolean(), // Whether the story is still active/visible
-    sequence: v.number(), // Order of the story in user's story list
-    storyGroupId: v.string(), // Groups related stories together (e.g., multiple parts of same story)
-  })
-    .index("by_user", ["userId"])
-    .index("by_expiry", ["expiresAt"])
-    .index("by_active", ["isActive"])
-    .index("by_user_sequence", ["userId", "sequence"])
-    .index("by_story_group", ["storyGroupId"]),
+    viewers: v.array(v.id("users")),
+    storyGroupId: v.string(),
+    sequence: v.number(),
+    isActive: v.boolean(),
+    createdAt: v.number(), // Add this field
+    expiresAt: v.number(), // Add this field
+  }).index("by_userId", ["userId"]),
 
-  // Message Status table (for tracking send/read status)
   messageStatus: defineTable({
+    // New table for message read status
     messageId: v.id("messages"),
     userId: v.id("users"),
-    isSent: v.boolean(),
-    isDelivered: v.boolean(),
     isRead: v.boolean(),
-    readAt: v.optional(v.number()),
-    deliveredAt: v.optional(v.number()),
-    createdAt: v.number(),
   })
-    .index("by_message", ["messageId"])
-    .index("by_user", ["userId"]),
+    .index("by_userId", ["userId"])
+    .index("by_messageId", ["messageId"])
+    .index("by_messageId_userId", ["messageId", "userId"]),
 });

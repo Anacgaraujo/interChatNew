@@ -67,51 +67,42 @@ function AppLayout() {
 
   if (!isLoaded) return null;
 
+  // Effect for syncing user data with Convex
   useEffect(() => {
-    if (!isLoaded) return; // Should be redundant due to the check above, but good for safety
+    if (isSignedIn && !isUserSynced && !isSyncing) {
+      setIsSyncing(true);
+      createUserIfMissing()
+        .then(() => setIsUserSynced(true))
+        .catch((error) => {
+          console.error("Failed to sync user with Convex:", error);
+          // Optionally, handle the error more gracefully, e.g., by signing the user out
+        })
+        .finally(() => setIsSyncing(false));
+    }
+  }, [isSignedIn, isUserSynced, isSyncing, createUserIfMissing]);
 
+  // Effect for handling navigation based on auth state
+  useEffect(() => {
+    if (!isLoaded) return;
     const inProtectedRoute = segments[0] === "(protected)";
 
-    if (isSignedIn) {
-      // If user is signed in, try to sync them if not already synced or syncing
-      if (!isUserSynced && !isSyncing) {
-        setIsSyncing(true);
-        createUserIfMissing()
-          .then(() => {
-            setIsUserSynced(true);
-            // After successful sync, if not in a protected route, navigate.
-            if (!inProtectedRoute) {
-              router.replace("/(protected)/(tabs)");
-            }
-          })
-          .catch((error) => {
-            console.error("Failed to sync user with Convex:", error);
-            // Handle error: maybe redirect to a generic error page or public page
-            if (inProtectedRoute) router.replace("/");
-          })
-          .finally(() => {
-            setIsSyncing(false);
-          });
-      } else if (isUserSynced && !inProtectedRoute) {
-        // If user is already synced and not in a protected route, navigate.
+    // If user is signed in and synced, ensure they are in a protected route
+    if (isSignedIn && isUserSynced) {
+      if (!inProtectedRoute) {
         router.replace("/(protected)/(tabs)");
       }
     } else {
-      // User is not signed in
-      setIsUserSynced(false); // Reset sync status
-      setIsSyncing(false); // Reset syncing status
+      // If user is not signed in, ensure they are in a public route
       if (inProtectedRoute) {
-        router.replace("/"); // Redirect from protected to public route
+        router.replace("/");
+      }
+      // Reset sync status on sign out
+      if (isUserSynced || isSyncing) {
+        setIsUserSynced(false);
+        setIsSyncing(false);
       }
     }
-  }, [
-    isLoaded,
-    isSignedIn,
-    segments,
-    createUserIfMissing,
-    isUserSynced,
-    isSyncing,
-  ]);
+  }, [isLoaded, isSignedIn, isUserSynced, segments]);
 
   // Show loader while Clerk is loading, or if user is signed in but still syncing/not_synced
   if (!isLoaded || (isSignedIn && (isSyncing || !isUserSynced))) {

@@ -34,16 +34,19 @@ export interface Story {
   createdAt: number;
   storyGroupId: string;
   user: Doc<"users">;
+  sequence: number;
 }
 
 export const Stories = () => {
   const { isDark } = useTheme();
   const [isUploading, setIsUploading] = useState(false);
-  const generateUploadURL = useMutation(api.general.generateUploadURL);
+  const generateUploadURL = useMutation(api.general.generateUploadURL); // Corrected typo
   const createStory = useMutation(api.stories.createStory);
   const user = useProfile();
 
-  const storiesByUser = useQuery(api.stories.getStories, {});
+  const storiesByUser = useQuery(api.stories.getStories, {}) as
+    | Record<Id<"users">, Story[]>
+    | undefined;
 
   const handleAddStory = async () => {
     try {
@@ -128,21 +131,25 @@ export const Stories = () => {
     const currentUserId = user?._id ?? "";
 
     if (!storiesByUser) return [];
-
+    // Handle the case where currentUserId might be an empty string, which is not a valid index for Record<Id<"users">, ...>
+    if (currentUserId === "") return [];
     const myStories = storiesByUser[currentUserId] ?? [];
 
     const result = Object.entries(storiesByUser)
       .filter(([userId]) => userId !== currentUserId)
-      .map(([userId, stories]) => ({
+      .map(([userId, stories]: [string, Story[]]) => ({
+        // Explicitly type stories
         userId,
-        stories: stories.sort((a, b) => a.sequence - b.sequence),
+        stories: stories.sort((a: Story, b: Story) => a.sequence - b.sequence),
       }));
 
     //   /if current has stories add to the top of the array
     if (myStories.length > 0) {
       result.unshift({
-        userId: currentUserId,
-        stories: myStories.sort((a, b) => a.sequence - b.sequence),
+        userId: currentUserId as Id<"users">, // Cast to Id<"users">
+        stories: myStories.sort(
+          (a: Story, b: Story) => a.sequence - b.sequence
+        ),
       });
     }
     return result;

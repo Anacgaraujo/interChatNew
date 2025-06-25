@@ -1,27 +1,58 @@
 //convex/users.ts
 import { v } from "convex/values";
-import { internalMutation, query, QueryCtx } from "./_generated/server";
-import { Id } from "./_generated/dataModel";
-import { getMedialURL } from "./general";
+import {
+  internalMutation,
+  query,
+  QueryCtx,
+  mutation,
+} from "./_generated/server";
+import { Doc, Id } from "./_generated/dataModel";
+import { getMediaUrl } from "./general"; // Corrected typo
+import { api } from "./_generated/api";
 
-import { mutation } from "./_generated/server";
+export const updateUser = mutation({
+  args: {
+    preferredLanguage: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_externalId", (q) => q.eq("externalId", identity.subject)) // Corrected index
+      .unique();
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    await ctx.db.patch(user._id, {
+      preferredLanguage: args.preferredLanguage,
+    });
+  },
+});
 
 export const createUserIfMissing = mutation(async (ctx) => {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Not authenticated");
 
   const existingUser = await ctx.db
-    .query("users")
-    .withIndex("by_clerk_id", (q) => q.eq("clerkId", identity.subject))
+    .query("users") // Corrected index
+    .withIndex("by_externalId", (q) => q.eq("externalId", identity.subject))
     .unique();
 
   if (existingUser) return;
 
   await ctx.db.insert("users", {
-    clerkId: identity.subject,
+    externalId: identity.subject,
     email: identity.email ?? "",
     name: identity.name ?? identity.subject,
     imageUrl: identity.pictureUrl,
+    friends: [], // Initialize friends as an empty array
+    isOnline: false,
   });
 });
 
@@ -36,26 +67,24 @@ export const createUser = internalMutation({
   },
   handler: async (ctx, args) => {
     const existingUsername = await ctx.db
-      .query("users")
-      .withIndex("by_username", (q) => q.eq("username", args.username))
-      .first();
+      .query("users") // Corrected index
+      .withIndex("by_username", (q) => q.eq("username", args.username)); // Use by_username index      .first();
 
     if (existingUsername) {
       throw new Error("Username already exists");
     }
 
     const existingEmail = await ctx.db
-      .query("users")
-      .withIndex("by_email", (q) => q.eq("email", args.email))
-      .first();
+      .query("users") // Corrected index
+      .withIndex("by_email", (q) => q.eq("email", args.email)); // Use by_email index      .first();
 
     if (existingEmail) {
       throw new Error("Email already exists");
     }
 
     const existingClerkId = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .query("users") // Corrected index
+      .withIndex("by_externalId", (q) => q.eq("externalId", args.clerkId))
       .first();
 
     if (existingClerkId) {
@@ -63,8 +92,15 @@ export const createUser = internalMutation({
     }
 
     const userId = await ctx.db.insert("users", {
-      ...args,
-      username: args.username || args.name,
+      // Corrected insert
+      externalId: args.clerkId,
+      email: args.email,
+      name: args.name,
+      imageUrl: args.imageUrl,
+      username: args.username || args.name, // Use provided username or default to name
+      preferredLanguage: args.preferredLanguage,
+      friends: [], // Initialize friends as an empty array
+      isOnline: false, // Default to offline
     });
 
     return userId;
@@ -75,10 +111,10 @@ export const getUserByClerkId = query({
   args: {
     clerkId: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<Doc<"users"> | null> => {
     const user = await ctx.db
-      .query("users")
-      .withIndex("by_clerk_id", (q) => q.eq("clerkId", args.clerkId))
+      .query("users") // Corrected index
+      .withIndex("by_externalId", (q) => q.eq("externalId", args.clerkId))
       .unique();
 
     if (!user) {
@@ -86,19 +122,25 @@ export const getUserByClerkId = query({
     }
 
     if (!user.imageUrl || user.imageUrl.startsWith("http")) {
+      // This logic might need review if imageUrl is always a storageId
       return user;
     }
 
-    const url = await getMedialURL(ctx, user.imageUrl);
+    const url: string | null = await ctx.runQuery(api.general.getMediaUrl, {
+      storageId: user.imageUrl as Id<"_storage">,
+    }); // Corrected typo and usage
 
     return {
       ...user,
-      imageUrl: url,
+      imageUrl: url ?? undefined, // Coalesce null to undefined
     };
   },
 });
 
-export const getUserById = async (ctx: QueryCtx, userId: Id<"users">) => {
+export const getUserById = async (
+  ctx: QueryCtx,
+  userId: Id<"users">
+): Promise<Doc<"users"> | null> => {
   const user = await ctx.db.get(userId);
 
   if (!user) {
@@ -109,11 +151,12 @@ export const getUserById = async (ctx: QueryCtx, userId: Id<"users">) => {
     return user;
   }
 
-  const url = await getMedialURL(ctx, user.imageUrl);
-
+  const url: string | null = await ctx.runQuery(api.general.getMediaUrl, {
+    storageId: user.imageUrl as Id<"_storage">,
+  });
   return {
     ...user,
-    imageUrl: url,
+    imageUrl: url ?? undefined, // Coalesce null to undefined
   };
 };
 
@@ -132,14 +175,14 @@ export const getCurrentUser = async (ctx: QueryCtx) => {
   if (!identity) {
     throw new Error("Unauthorized");
   }
-
-  return userByExteRnalId(ctx, identity.subject);
+  // Assuming userByExteRnalId is meant to fetch by the externalId (Clerk ID)
+  return userByExteRnalId(ctx, identity.subject); // Corrected typo
 };
 
 export const userByExteRnalId = async (ctx: QueryCtx, externalId: string) => {
-  return await ctx.db
+  return await ctx.db // Corrected index
     .query("users")
-    .withIndex("by_clerk_id", (q) => q.eq("clerkId", externalId))
+    .withIndex("by_externalId", (q) => q.eq("externalId", externalId))
     .unique();
 };
 

@@ -1,21 +1,15 @@
-import { Id } from "./_generated/dataModel";
-import { mutation, QueryCtx } from "./_generated/server";
-import { getCurrentUserOrThrow } from "./users";
+import { mutation, query } from "./_generated/server";
+import { v } from "convex/values";
 
-export const getMedialURL = async (ctx: QueryCtx, url: string) => {
-  if (!url || !url.startsWith("http")) {
-    return url;
-  }
+// This is a general utility to get a media URL from a storage ID.
+// It's used by the `getMessages` query to resolve media URLs for display.
+export const getMediaUrl = query({
+  args: { storageId: v.id("_storage") },
+  handler: async (ctx, { storageId }) => ctx.storage.getUrl(storageId),
+});
 
-  const newURL = await ctx.storage.getUrl(url as Id<"_storage">);
-
-  return newURL;
-};
-
+// This mutation generates a URL for uploading files to Convex storage.
 export const generateUploadURL = mutation({
-  handler: async (ctx) => {
-    await getCurrentUserOrThrow(ctx);
-
-    return await ctx.storage.generateUploadUrl();
-  },
+  args: {},
+  handler: async (ctx) => ctx.storage.generateUploadUrl(),
 });

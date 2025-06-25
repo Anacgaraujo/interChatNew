@@ -1,10 +1,10 @@
 import { Loader } from "@/components/loader";
 import { MediaViewer } from "@/components/media-viewer";
 import { MessageInput } from "@/components/message-inout";
-import { MessageItem } from "@/components/message-item";
+import { MessageItem, MessageWithUser } from "@/components/MessageItem"; // Ensure MessageWithUser is imported
 import { useTheme } from "@/context/theme-context";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
+import { Doc, Id } from "@/convex/_generated/dataModel";
 import { NoImage } from "@/dummyData";
 import { useProfile } from "@/hooks/use-profile";
 import { MaterialIcons } from "@expo/vector-icons";
@@ -20,6 +20,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ListRenderItem,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -49,10 +50,10 @@ const Chat = () => {
   const markMessageAsRead = useMutation(api.messages.markMessageAsRead);
 
   const myUnreadMessageIds = messages
-    ?.filter((message) => message.userId !== user?._id)
-    .map((message) => message._id);
+    ?.filter((message: MessageWithUser) => message.userId !== user?._id)
+    .map((message: MessageWithUser) => message._id);
 
-  const handleMediaPress = (media: any) => {
+  const handleMediaPress = (media: { type: string; url: string }) => {
     setSelectedMedia(media);
     setShowMediaViewer(true);
   };
@@ -80,7 +81,7 @@ const Chat = () => {
   const chatImage = chat?.image;
 
   const otherParticipant = chat?.participantsInfo.find(
-    (participant) => participant._id !== user?._id
+    (participant: Doc<"users">) => participant._id !== user?._id
   );
 
   if (!chat) {
@@ -152,10 +153,12 @@ const Chat = () => {
           <FlatList
             data={messages}
             ref={flatListRef}
-            keyExtractor={(item) => item._id}
-            renderItem={({ item }) => (
+            keyExtractor={(item: MessageWithUser) => item._id} // Explicitly type item
+            renderItem={(
+              { item }: { item: MessageWithUser } // Explicitly type item
+            ) => (
               <MessageItem
-                message={item}
+                message={item} // No need for 'as MessageWithUser' if item is already typed
                 isGroup={isGroup}
                 handleMediaPress={handleMediaPress}
               />
