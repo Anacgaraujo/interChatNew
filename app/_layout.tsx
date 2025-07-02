@@ -1,4 +1,5 @@
 //app/layout.tsx
+import React from "react";
 import { ClerkLoaded, ClerkProvider, useAuth } from "@clerk/clerk-expo";
 import { tokenCache } from "@clerk/clerk-expo/token-cache";
 import { router, Slot, useSegments, SplashScreen } from "expo-router";
@@ -7,6 +8,7 @@ import { useEffect, useState } from "react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
 import { ThemeProvider, useTheme } from "@/context/theme-context";
+import { View, Text } from "react-native";
 import "../global.css";
 
 import { useMutation } from "convex/react";
@@ -70,12 +72,20 @@ function AppLayout() {
   // Effect for syncing user data with Convex
   useEffect(() => {
     if (isSignedIn && !isUserSynced && !isSyncing) {
+      console.log("Starting user sync with Convex...");
       setIsSyncing(true);
       createUserIfMissing()
-        .then(() => setIsUserSynced(true))
+        .then(() => {
+          console.log("User successfully synced with Convex");
+          setIsUserSynced(true);
+        })
         .catch((error) => {
           console.error("Failed to sync user with Convex:", error);
-          // Optionally, handle the error more gracefully, e.g., by signing the user out
+          // If user creation fails, try again after a short delay
+          setTimeout(() => {
+            setIsUserSynced(false);
+            setIsSyncing(false);
+          }, 1000);
         })
         .finally(() => setIsSyncing(false));
     }
@@ -86,14 +96,23 @@ function AppLayout() {
     if (!isLoaded) return;
     const inProtectedRoute = segments[0] === "(protected)";
 
+    console.log("Navigation effect:", {
+      isSignedIn,
+      isUserSynced,
+      inProtectedRoute,
+      segments: segments.join("/"),
+    });
+
     // If user is signed in and synced, ensure they are in a protected route
     if (isSignedIn && isUserSynced) {
       if (!inProtectedRoute) {
+        console.log("Redirecting to protected route");
         router.replace("/(protected)/(tabs)");
       }
-    } else {
+    } else if (!isSignedIn) {
       // If user is not signed in, ensure they are in a public route
       if (inProtectedRoute) {
+        console.log("Redirecting to public route");
         router.replace("/");
       }
       // Reset sync status on sign out
@@ -109,7 +128,11 @@ function AppLayout() {
     // Consider using your <Loader /> component if you have one for a better UX
     // e.g. import { Loader } from '@/components/loader'; return <Loader />;
     // SplashScreen.hideAsync(); // If you used preventAutoHideAsync
-    return null; // Or a loading indicator
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <Text>Loading...</Text>
+      </View>
+    );
   }
 
   return (

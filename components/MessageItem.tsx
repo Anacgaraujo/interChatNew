@@ -76,7 +76,7 @@ const MediaCard = ({
 export const MessageItem = ({
   message,
   isGroup,
-  handleMediaPress,
+  handleMediaPress, // Added handleMediaPress to props
 }: {
   message: MessageWithUser;
   isGroup: boolean | undefined;
@@ -84,7 +84,7 @@ export const MessageItem = ({
 }) => {
   const { isDark } = useTheme();
   const currentUser = useProfile();
-  const getOrTranslate = useAction(api.translate.getOrTranslate);
+  const getOrTranslate = useAction(api.translate.getOrTranslateMessage);
 
   const [displayText, setDisplayText] = useState(message.content);
   const [isLoadingTranslation, setIsLoadingTranslation] = useState(false);

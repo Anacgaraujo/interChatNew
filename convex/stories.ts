@@ -26,7 +26,7 @@ export const createStory = mutation({
 
     const latestStory = await ctx.db
       .query("stories")
-      .withIndex("by_userId", (q) => q.eq("userId", user._id)) // Corrected index name
+      .withIndex("by_user_and_expiration", (q) => q.eq("userId", user._id))
       .order("desc")
       .first();
 
@@ -74,8 +74,9 @@ export const getStories = query({
     const storiesPromises = friendsId.map((friendId: Id<"users">) =>
       ctx.db
         .query("stories")
-        .withIndex("by_userId", (q) => q.eq("userId", friendId)) // Use the correct index
-        .filter((q) => q.gt(q.field("expiresAt"), now))
+        .withIndex("by_user_and_expiration", (q) =>
+          q.eq("userId", friendId).gt("expiresAt", now)
+        )
         .collect()
     );
 

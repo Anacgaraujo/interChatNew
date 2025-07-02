@@ -5,21 +5,41 @@ export default defineSchema({
   // You should already have a 'users' table.
   // Add the 'preferredLanguage' field to it.
   users: defineTable({
-    name: v.string(),
-    username: v.optional(v.string()),
-    imageUrl: v.optional(v.string()),
-    email: v.string(),
+    //   name: v.string(),
+    //   username: v.optional(v.string()),
+    //   imageUrl: v.optional(v.string()),
+    //   email: v.string(),
+    //   externalId: v.string(),
+    //   isOnline: v.boolean(),
+    //   phoneNumber: v.optional(v.string()),
+    //   lastSeen: v.optional(v.number()),
+    //   friends: v.array(v.id("users")), // Add this field
+    //   preferredLanguage: v.optional(v.string()),
+    //   searchableName: v.string(),
+    // })
+    //   .index("by_externalId", ["externalId"])
+    //   .index("by_username", ["username"]) // Add this index
+    //   .index("by_email", ["email"]) // Add this index
+    //   .searchIndex("by_searchable_name", { searchField: "searchableName" }),
+
     externalId: v.string(),
-    isOnline: v.boolean(),
-    phoneNumber: v.optional(v.string()),
-    lastSeen: v.optional(v.number()),
-    // Add this new field for language preference
-    friends: v.array(v.id("users")), // Add this field
+    email: v.string(),
+    name: v.string(),
+    imageUrl: v.optional(v.string()),
+    username: v.optional(v.string()),
     preferredLanguage: v.optional(v.string()),
+    friends: v.array(v.id("users")),
+    isOnline: v.boolean(),
+    lastSeen: v.optional(v.float64()),
+    phoneNumber: v.optional(v.string()),
+    searchableName: v.optional(v.string()), // 🔧 Make it optional here
   })
+    .index("by_email", ["email"])
+    .index("by_username", ["username"])
     .index("by_externalId", ["externalId"])
-    .index("by_username", ["username"]) // Add this index
-    .index("by_email", ["email"]), // Add this index
+    .searchIndex("by_searchable_name", {
+      searchField: "searchableName",
+    }),
 
   // You likely have a 'chats' table like this. No changes needed here.
   chats: defineTable({
@@ -83,15 +103,17 @@ export default defineSchema({
     isActive: v.boolean(),
     createdAt: v.number(), // Add this field
     expiresAt: v.number(), // Add this field
-  }).index("by_userId", ["userId"]),
+  }).index("by_user_and_expiration", ["userId", "expiresAt"]),
 
   messageStatus: defineTable({
     // New table for message read status
     messageId: v.id("messages"),
     userId: v.id("users"),
+    chatId: v.optional(v.id("chats")),
     isRead: v.boolean(),
   })
     .index("by_userId", ["userId"])
     .index("by_messageId", ["messageId"])
-    .index("by_messageId_userId", ["messageId", "userId"]),
+    .index("by_messageId_userId", ["messageId", "userId"])
+    .index("by_user_chat_read", ["userId", "chatId", "isRead"]),
 });

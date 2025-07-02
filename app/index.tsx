@@ -6,7 +6,7 @@ import * as WebBrowser from "expo-web-browser";
 import { useSSO } from "@clerk/clerk-expo";
 import * as AuthSession from "expo-auth-session";
 
-export const useWarmUpBrowser = () => {
+const useWarmUpBrowser = () => {
   useEffect(() => {
     // Preloads the browser for Android devices to reduce authentication load time
     // See: https://docs.expo.dev/guides/authentication/#improving-user-experience
@@ -37,7 +37,10 @@ export default function Index() {
           // For web, defaults to current path
           // For native, you must pass a scheme, like AuthSession.makeRedirectUri({ scheme, path })
           // For more info, see https://docs.expo.dev/versions/latest/sdk/auth-session/#authsessionmakeredirecturioptions
-          redirectUrl: AuthSession.makeRedirectUri(),
+          redirectUrl: AuthSession.makeRedirectUri({
+            scheme: "chat-yt-app",
+            path: "/(protected)/(tabs)",
+          }),
         });
 
       // If sign in was successful, set the active session

@@ -60,71 +60,70 @@ type ChatWithDetails = Doc<"chats"> & {
 export const getChats = query({
   args: {},
   handler: async (ctx): Promise<ChatWithDetails[]> => {
-    const user = await getCurrentUserOrThrow(ctx);
+    try {
+      const user = await getCurrentUserOrThrow(ctx);
 
-    if (!user) {
+      if (!user) {
+        return [];
+      }
+
+      const rawChats = await ctx.db
+        .query("chats")
+        .withIndex("by_participants", (q) =>
+          q.eq("participants", user._id as any)
+        )
+        .order("desc")
+        .collect();
+
+      const chatsWithLastMessage = await Promise.all(
+        rawChats.map(async (chat): Promise<ChatWithDetails> => {
+          const lastMessage = await ctx.db
+            .query("messages")
+            .withIndex("by_chatId", (q) => q.eq("chatId", chat._id))
+            .order("desc")
+            .first();
+
+          const participantsInfo: (Doc<"users"> | null)[] = await Promise.all(
+            chat.participants
+              .filter((id) => id !== user._id)
+              .map(async (userId) => {
+                return await getUserById(ctx, userId);
+              })
+          );
+
+          const chatName: string =
+            (chat.isGroup ? chat.name : participantsInfo[0]?.name) || "Unknown";
+
+          const chatImage: string =
+            (chat.isGroup ? chat.image : participantsInfo[0]?.imageUrl) || "";
+
+          const unread = await ctx.db
+            .query("messageStatus")
+            .withIndex("by_user_chat_read", (q) =>
+              q
+                .eq("userId", user._id)
+                .eq("chatId", chat._id)
+                .eq("isRead", false)
+            )
+            .collect();
+          const unreadCount = unread.length;
+
+          return {
+            ...chat,
+            name: chatName,
+            image: chatImage,
+            lastMessage,
+            participantsInfo,
+            unreadCount,
+          };
+        })
+      );
+
+      return chatsWithLastMessage;
+    } catch (error) {
+      console.error("Error in getChats:", error);
       return [];
     }
-
-    const rawChats = await ctx.db
-      .query("chats")
-      .withIndex("by_participants", (q) => q.eq("participants", [user._id])) // Use the correct index and query
-      .order("desc")
-      .collect();
-
-    const chats = rawChats.filter((chat) =>
-      chat.participants.includes(user._id)
-    );
-
-    const chatsWithLastMessage = await Promise.all(
-      chats.map(async (chat): Promise<ChatWithDetails> => {
-        const lastMessage = await ctx.db
-          .query("messages")
-          .withIndex("by_chatId", (q) => q.eq("chatId", chat._id))
-          .order("desc")
-          .first();
-
-        const participantsInfo: (Doc<"users"> | null)[] = await Promise.all(
-          chat.participants
-            .filter((id) => id !== user._id)
-            .map(async (userId) => {
-              return await getUserById(ctx, userId);
-            })
-        );
-
-        const chatName: string =
-          (chat.isGroup ? chat.name : participantsInfo[0]?.name) || "Unknown";
-
-        const chatImage: string =
-          (chat.isGroup ? chat.image : participantsInfo[0]?.imageUrl) || "";
-
-        const unReadMessages = await ctx.db
-          .query("messageStatus") // Use the new messageStatus table
-          .withIndex("by_userId", (q) => q.eq("userId", user._id)) // Use the correct index
-          .filter((q) => q.eq(q.field("isRead"), false))
-          .collect();
-
-        const chatUnreadMessages = await Promise.all(
-          unReadMessages.map(async (status: Doc<"messageStatus">) => {
-            const message = await ctx.db.get(status.messageId); // Access messageId from status
-            return message && message.chatId === chat._id ? status : null;
-          })
-        );
-
-        const unreadCount = chatUnreadMessages.filter(Boolean).length;
-
-        return {
-          ...chat,
-          name: chatName,
-          image: chatImage,
-          lastMessage,
-          participantsInfo,
-          unreadCount,
-        };
-      })
-    );
-
-    return chatsWithLastMessage;
   },
 });
 
