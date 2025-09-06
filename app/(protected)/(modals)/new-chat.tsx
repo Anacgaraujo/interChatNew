@@ -1,3 +1,4 @@
+//app/(protected)/(modals)/new-chat.tsx
 import { useTheme } from "@/context/theme-context";
 import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
@@ -67,8 +68,7 @@ const NewChat = () => {
           source={{
             uri:
               item.imageUrl ||
-              "https://ui-avatars.com/api/?name=sfsf" +
-                encodeURIComponent(item.name),
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}`,
           }}
           className="w-12 h-12 rounded-full"
         />

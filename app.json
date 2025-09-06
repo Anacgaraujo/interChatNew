@@ -2,25 +2,36 @@
   "expo": {
     "name": "chat-yt",
     "slug": "chat-yt",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "chat-yt-app",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
       "bundleIdentifier": "com.actanaaraujo.chatyt",
-      "buildNumber": "1.0.0",
+      "buildNumber": "2.0.5",
       "supportsTablet": true,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "This app uses the camera to take photos for stories and profile pictures.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to select images for stories and profile pictures.",
+        "NSMicrophoneUsageDescription": "This app uses the microphone for voice messages."
       }
     },
     "android": {
+      "package": "com.actanaaraujo.chatyt",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECORD_AUDIO"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -38,7 +49,8 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-video"
+      "expo-video",
+      "expo-image-picker"
     ],
     "experiments": {
       "typedRoutes": true

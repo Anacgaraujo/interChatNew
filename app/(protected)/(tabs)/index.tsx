@@ -8,14 +8,52 @@ import { Loader } from "@/components/loader";
 import { NewChatButton } from "@/components/new-chat-button";
 import { Stories } from "@/components/stories";
 import { useTheme } from "@/context/theme-context";
+import { Doc, Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
+
+// Define an interface for the detailed chat object returned by getChats
+interface ChatWithDetails extends Doc<"chats"> {
+  name: string;
+  image: string | undefined;
+  lastMessage: Doc<"messages"> | null;
+  participantsInfo: (Doc<"users"> | null)[];
+  unreadCount: number;
+}
 
 const Index = () => {
   const { isDark } = useTheme();
-  const chats = useQuery(api.chats.getChats, {});
+  const chats = useQuery(api.chats.getChats, {}) as
+    | ChatWithDetails[]
+    | undefined;
   const isLoading = chats === undefined;
 
-  const formattedChats = chats?.map((chat) => ({
+  // Add error handling for the query
+  if (chats === null) {
+    return (
+      <SafeAreaView className={`flex-1 ${isDark ? "bg-gray-900" : "bg-white"}`}>
+        <View className="flex-1 items-center justify-center">
+          <Text className={`text-lg ${isDark ? "text-white" : "text-black"}`}>
+            Error loading chats. Please try again.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Handle loading state
+  if (isLoading) {
+    return (
+      <SafeAreaView className={`flex-1 ${isDark ? "bg-gray-900" : "bg-white"}`}>
+        <View className="flex-1 items-center justify-center">
+          <Text className={`text-lg ${isDark ? "text-white" : "text-black"}`}>
+            Loading chats...
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const formattedChats = chats?.map((chat: ChatWithDetails) => ({
     _id: chat._id,
     name: chat.name,
     image: chat.image,
@@ -37,32 +75,28 @@ const Index = () => {
       </View>
 
       {/* chat */}
-      {isLoading ? (
-        <Loader />
-      ) : (
-        <FlatList
-          data={formattedChats}
-          renderItem={({ item }) => <ChatItem item={item as any} />}
-          keyExtractor={(item) => item._id}
-          className={isDark ? "bg-gray-900" : "bg-white"}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 120 }}
-          ListHeaderComponent={() => <Stories />}
-          ListEmptyComponent={() => (
-            <View className={`items-center justify-center flex-1 py-20`}>
-              <MaterialCommunityIcons
-                name="chat-outline"
-                size={48}
-                color={isDark ? "white" : "black"}
-              />
-              <Text className="text-lg font-bold">No chats yet</Text>
-              <Text className="text-gray-500">
-                Start a conversation with your friends
-              </Text>
-            </View>
-          )}
-        />
-      )}
+      <FlatList
+        data={formattedChats}
+        renderItem={({ item }) => <ChatItem item={item as any} />}
+        keyExtractor={(item) => item._id}
+        className={isDark ? "bg-gray-900" : "bg-white"}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        ListHeaderComponent={() => <Stories />}
+        ListEmptyComponent={() => (
+          <View className={`items-center justify-center flex-1 py-20`}>
+            <MaterialCommunityIcons
+              name="chat-outline"
+              size={48}
+              color={isDark ? "white" : "black"}
+            />
+            <Text className="text-lg font-bold">No chats yet</Text>
+            <Text className="text-gray-500">
+              Start a conversation with your friends
+            </Text>
+          </View>
+        )}
+      />
 
       {/* new chat button */}
 

@@ -1,7 +1,81 @@
-import { ConvexError, v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { getCurrentUserOrThrow, getUserById } from "./users";
-import { Id } from "./_generated/dataModel";
+import { v } from "convex/values";
+import { getUserById, userByExternalId } from "./users";
+import { getCurrentUserOrThrow } from "./users";
+import { api } from "./_generated/api";
+import { Doc, Id } from "./_generated/dataModel";
+
+type MessageWithUser = Doc<"messages"> & {
+  user: Doc<"users"> | null;
+  media?: (NonNullable<Doc<"messages">["media"]>[number] & {
+    url: string | null;
+  })[];
+};
+
+// Helper to get a single message by its ID.
+export const getMessage = query({
+  args: { messageId: v.id("messages") },
+  handler: async (ctx, { messageId }) => {
+    return await ctx.db.get(messageId);
+  },
+});
+
+export const getMessages = query({
+  args: { chatId: v.id("chats") },
+  handler: async (ctx, { chatId }): Promise<MessageWithUser[]> => {
+    // 1. Get all messages for the chat, using the index for performance.
+    const messages = await ctx.db
+      .query("messages")
+      .withIndex("by_chatId", (q) => q.eq("chatId", chatId))
+      .order("asc") // Order by creation time (_creationTime is the default)
+      .collect();
+
+    // 2. Collect all unique user IDs and media storage IDs to fetch them in batches.
+    const userIds = new Set<Id<"users">>();
+    const mediaStorageIds = new Set<Id<"_storage">>();
+
+    messages.forEach((message) => {
+      userIds.add(message.userId);
+      if (message.media) {
+        message.media.forEach((m) => mediaStorageIds.add(m.storageId));
+      }
+    });
+
+    // 3. Fetch all users and media URLs in parallel.
+    const usersPromise = Promise.all(
+      Array.from(userIds).map((userId) => getUserById(ctx, userId))
+    );
+    const mediaUrlsPromise = Promise.all(
+      Array.from(mediaStorageIds).map(async (storageId) => {
+        const url = await ctx.storage.getUrl(storageId);
+        return { storageId, url };
+      })
+    );
+
+    const [users, mediaUrls] = await Promise.all([
+      usersPromise,
+      mediaUrlsPromise,
+    ]);
+
+    // 4. Create maps for easy and efficient lookup.
+    const usersMap = new Map(
+      users.filter(Boolean).map((user) => [user!._id, user!])
+    );
+    const mediaUrlsMap = new Map(
+      mediaUrls.map(({ storageId, url }) => [storageId, url])
+    );
+
+    // 5. Combine all the data together.
+    return messages.map((message) => {
+      const user = usersMap.get(message.userId) ?? null;
+      const media = message.media?.map((m) => ({
+        ...m,
+        url: mediaUrlsMap.get(m.storageId) ?? null,
+      }));
+      return { ...message, user, media };
+    });
+  },
+});
 
 export const sendMessage = mutation({
   args: {
@@ -10,168 +84,42 @@ export const sendMessage = mutation({
     media: v.optional(
       v.array(
         v.object({
-          storageId: v.string(),
+          storageId: v.id("_storage"),
           type: v.string(),
           fileName: v.optional(v.string()),
           fileSize: v.optional(v.number()),
           mimeType: v.optional(v.string()),
           duration: v.optional(v.number()),
           dimensions: v.optional(
-            v.object({
-              width: v.number(),
-              height: v.number(),
-            })
+            v.object({ width: v.number(), height: v.number() })
           ),
         })
       )
     ),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, { chatId, text, media }) => {
     const user = await getCurrentUserOrThrow(ctx);
 
-    const chat = await ctx.db.get(args.chatId);
-
-    if (!chat) {
-      throw new ConvexError("Chat not found");
-    }
-
-    if (!chat.participants.includes(user._id)) {
-      throw new ConvexError("You are not a participant of this chat");
-    }
-
+    // The `content` field is required by the schema.
+    // We'll use the provided text, or an empty string for media-only messages.
     const messageId = await ctx.db.insert("messages", {
-      chatId: args.chatId,
-      text: args.text,
-      media: args.media,
+      content: text || "",
       userId: user._id,
-      createdAt: Date.now(),
+      chatId,
+      media,
     });
 
-    await ctx.db.patch(args.chatId, {
-      updatedAt: Date.now(),
-    });
-
-    // message status
-
-    await Promise.all(
-      chat.participants.map(async (participant) => {
-        const isCurrentUser = participant === user._id;
-
-        await ctx.db.insert("messageStatus", {
-          messageId,
-          userId: participant as Id<"users">,
-          isSent: true,
-          isDelivered: isCurrentUser,
-          isRead: isCurrentUser,
-          readAt: isCurrentUser ? Date.now() : undefined,
-          deliveredAt: isCurrentUser ? Date.now() : undefined,
-          createdAt: Date.now(),
-        });
-      })
-    );
-
-    return messageId;
-  },
-});
-
-export const getMessages = query({
-  args: {
-    chatId: v.id("chats"),
-  },
-  handler: async (ctx, args) => {
-    const user = await getCurrentUserOrThrow(ctx);
-
-    const chat = await ctx.db.get(args.chatId);
-
-    if (!chat) {
-      throw new ConvexError("Chat not found");
-    }
-
-    if (!chat.participants.includes(user._id)) {
-      throw new ConvexError("You are not a participant of this chat");
-    }
-
-    const messages = await ctx.db
-      .query("messages")
-      .withIndex("by_chat_id", (q) => q.eq("chatId", args.chatId))
-      .order("desc")
-      .take(50);
-
-    const messageWithMedia = await Promise.all(
-      messages.map(async (message) => {
-        const user = await getUserById(ctx, message.userId as Id<"users">);
-
-        if (message.media && message.media.length > 0) {
-          const mediaUrls = await Promise.all(
-            message.media.map(async (media) => {
-              if (media.storageId) {
-                const url = await ctx.storage.getUrl(
-                  media.storageId as Id<"_storage">
-                );
-
-                return {
-                  ...media,
-                  url: url,
-                };
-              }
-
-              return media;
-            })
-          );
-
-          return {
-            ...message,
-            media: mediaUrls,
-            user: user,
-          };
-        }
-
-        return message;
-      })
-    );
-
-    return messageWithMedia;
+    // TODO: Implement message status tracking when messageStatus table is added back
+    console.log(`Message sent: ${messageId}`);
   },
 });
 
 export const markMessageAsRead = mutation({
-  args: {
-    chatId: v.id("chats"),
-    messageIds: v.array(v.id("messages")),
-  },
-  handler: async (ctx, args) => {
-    const user = await getCurrentUserOrThrow(ctx);
-
-    // Check if the chat exists
-    const chat = await ctx.db.get(args.chatId);
-    if (!chat) {
-      throw new ConvexError("Chat not found");
-    }
-
-    // Check if the user is a participant in the chat
-    if (!chat.participants.includes(user?._id as Id<"users">)) {
-      throw new ConvexError("You are not a participant in this chat");
-    }
-
-    await Promise.all(
-      args.messageIds.map(async (messageId) => {
-        const messageStatus = await ctx.db
-          .query("messageStatus")
-          .withIndex("by_user", (q) => q.eq("userId", user._id))
-          .filter((q) => q.eq(q.field("messageId"), messageId))
-          .first();
-
-        if (messageStatus && !messageStatus.isRead) {
-          await ctx.db.patch(messageStatus._id, {
-            isRead: true,
-            readAt: Date.now(),
-            isDelivered: true,
-            deliveredAt: Date.now(),
-          });
-        }
-      })
+  args: { chatId: v.id("chats"), messageIds: v.array(v.id("messages")) },
+  handler: async (ctx, { chatId, messageIds }) => {
+    // TODO: Implement read receipts when messageStatus table is added back
+    console.log(
+      `Marking messages as read in chat ${chatId}: ${messageIds.join(", ")}`
     );
-
-    return true;
   },
 });

@@ -1,6 +1,7 @@
 import { Loader } from "@/components/loader";
 import { Story } from "@/components/stories";
 import { useTheme } from "@/context/theme-context";
+import { Id } from "@/convex/_generated/dataModel"; // Import Id
 import { api } from "@/convex/_generated/api";
 import { useProfile } from "@/hooks/use-profile";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
@@ -19,27 +20,33 @@ const StoryView = () => {
   const [progress, setProgress] = useState(0);
   const [stories, setStories] = useState<Story[]>([]);
 
-  const userStories = useQuery(api.stories.getStories, {
-    friends: [id as string],
-  });
+  const userStories = useQuery(
+    api.stories.getStories,
+    id
+      ? {
+          friends: [id as Id<"users">], // Cast id to Id<"users">
+        }
+      : "skip"
+  ); // Use "skip" to prevent query if id is undefined
   const markStoryAsViewed = useMutation(api.stories.markStoryAsViewed);
 
   useEffect(() => {
     if (userStories && id) {
-      const userStoryArray = userStories[id as string] ?? [];
+      const userStoryArray = userStories[id as Id<"users">] ?? []; // Cast id to Id<"users">
 
       const sortedStories = [...userStoryArray].sort((a, b) => {
         const viewedA = a.viewers.includes(user?._id || "");
         const viewedB = b.viewers.includes(user?._id || "");
 
         if (viewedA !== viewedB) {
+          // Prioritize unviewed stories
           return viewedA ? 1 : -1;
         }
 
-        return a.sequence - b.sequence;
+        return a.sequence - b.sequence; // Then sort by sequence
       });
 
-      setStories(sortedStories as unknown as Story[]);
+      setStories(sortedStories);
     }
   }, [userStories, id, user]);
 
@@ -47,7 +54,7 @@ const StoryView = () => {
     if (stories.length > 0 && user && currentStoryIndex < stories.length) {
       const currentStory = stories[currentStoryIndex];
 
-      markStoryAsViewed({ storyId: currentStory._id });
+      markStoryAsViewed({ storyId: currentStory._id }); // storyId is already Id<"stories">
     }
   }, [currentStoryIndex, stories, user]);
 
