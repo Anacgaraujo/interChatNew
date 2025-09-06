@@ -33,6 +33,10 @@ export default defineSchema({
     lastSeen: v.optional(v.float64()),
     phoneNumber: v.optional(v.string()),
     searchableName: v.optional(v.string()), // 🔧 Make it optional here
+    // Subscription fields
+    isSubscribed: v.optional(v.boolean()),
+    subscriptionExpiresAt: v.optional(v.number()),
+    subscriptionProductId: v.optional(v.string()),
   })
     .index("by_email", ["email"])
     .index("by_username", ["username"])
@@ -50,7 +54,7 @@ export default defineSchema({
     combinedUserIds: v.optional(v.string()),
   })
     .index("by_participants", ["participants"]) // Add this index
-    .index("by_combinedUserIds", ["combinedUserIds"]), // Add this index
+    .index("by_combinedUserIds", ["combinedUserIds"]),
 
   // You likely have a 'messages' table. No changes needed here.
   messages: defineTable({
@@ -105,15 +109,24 @@ export default defineSchema({
     expiresAt: v.number(), // Add this field
   }).index("by_user_and_expiration", ["userId", "expiresAt"]),
 
-  messageStatus: defineTable({
-    // New table for message read status
-    messageId: v.id("messages"),
+  // New subscriptions table to track payment history
+  subscriptions: defineTable({
     userId: v.id("users"),
-    chatId: v.optional(v.id("chats")),
-    isRead: v.boolean(),
+    productId: v.string(), // e.g., "chatol_monthly"
+    status: v.union(
+      v.literal("active"),
+      v.literal("cancelled"),
+      v.literal("expired"),
+      v.literal("pending")
+    ),
+    purchaseDate: v.number(),
+    expiresAt: v.number(),
+    originalTransactionId: v.string(),
+    platform: v.union(v.literal("ios"), v.literal("android")),
+    price: v.number(), // Price in cents
+    currency: v.string(), // e.g., "USD"
   })
     .index("by_userId", ["userId"])
-    .index("by_messageId", ["messageId"])
-    .index("by_messageId_userId", ["messageId", "userId"])
-    .index("by_user_chat_read", ["userId", "chatId", "isRead"]),
+    .index("by_status", ["status"])
+    .index("by_expiresAt", ["expiresAt"]),
 });

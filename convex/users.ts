@@ -182,11 +182,27 @@ export const getCurrentUser = async (ctx: QueryCtx) => {
     throw new Error("Unauthorized");
   }
 
+  console.log("Identity subject:", identity.subject);
+  console.log("Identity email:", identity.email);
+
   // Try to get the user by external ID
   const user = await userByExternalId(ctx, identity.subject);
 
-  // If user doesn't exist, throw an error - this should be handled by the client
+  // If user doesn't exist, try to find by email as fallback
   if (!user) {
+    console.log("User not found by external ID, trying email...");
+    if (identity.email) {
+      const userByEmail = await ctx.db
+        .query("users")
+        .withIndex("by_email", (q) => q.eq("email", identity.email!))
+        .unique();
+      
+      if (userByEmail) {
+        console.log("Found user by email:", userByEmail._id);
+        return userByEmail;
+      }
+    }
+    
     throw new Error("User not found - please try logging in again");
   }
 

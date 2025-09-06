@@ -1,7 +1,7 @@
 export default {
   providers: [
     {
-      domain: "https://humble-deer-58.clerk.accounts.dev",
+      domain: "https://clerk.interchat.com",
       applicationID: "convex",
     },
   ],

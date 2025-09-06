@@ -97,16 +97,8 @@ export const getChats = query({
           const chatImage: string =
             (chat.isGroup ? chat.image : participantsInfo[0]?.imageUrl) || "";
 
-          const unread = await ctx.db
-            .query("messageStatus")
-            .withIndex("by_user_chat_read", (q) =>
-              q
-                .eq("userId", user._id)
-                .eq("chatId", chat._id)
-                .eq("isRead", false)
-            )
-            .collect();
-          const unreadCount = unread.length;
+          // TODO: Implement unread count when messageStatus table is added back
+          const unreadCount = 0;
 
           return {
             ...chat,

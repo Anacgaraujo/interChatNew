@@ -21,6 +21,7 @@ import {
   FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useSubscription } from "@/context/subscription-context";
 
 const SettingItem = ({
   icon,
@@ -155,6 +156,7 @@ const Profile = () => {
   const { signOut } = useAuth();
   const updateUser = useMutation(api.users.updateUser);
   const [showLanguagePicker, setShowLanguagePicker] = useState(false);
+  const { isSubscribed } = useSubscription();
 
   const languages = [
     { code: "en", name: "English" },
@@ -234,6 +236,10 @@ const Profile = () => {
     router.replace("/");
   };
 
+  const handleSubscription = () => {
+    router.push("/(protected)/(modals)/subscription" as any);
+  };
+
   return (
     <SafeAreaView className={`flex-1 ${isDark ? "bg-gray-900" : "bg-white"}`}>
       {/* header */}
@@ -287,6 +293,61 @@ const Profile = () => {
         </View>
 
         <View className="p-4 mt-4">
+          {/* Subscription Section */}
+          <View className="mb-8">
+            <Text
+              className={`text-[12px] font-semibold ${isDark ? "text-white" : "text-black"}`}
+            >
+              Subscription
+            </Text>
+
+            <View className="gap-4 mt-4">
+              <TouchableOpacity
+                className={`flex-row items-center justify-between p-4 rounded-lg ${
+                  isSubscribed
+                    ? isDark
+                      ? "bg-green-900"
+                      : "bg-green-100"
+                    : isDark
+                      ? "bg-yellow-900"
+                      : "bg-yellow-100"
+                }`}
+                onPress={handleSubscription}
+              >
+                <View className="flex-row items-center">
+                  <MaterialCommunityIcons
+                    name={isSubscribed ? "crown" : "crown-outline"}
+                    size={20}
+                    color={isSubscribed ? "#10b981" : "#f59e0b"}
+                  />
+                  <View className="ml-4">
+                    <Text
+                      className={`text-[16px] font-semibold ${
+                        isDark ? "text-white" : "text-gray-900"
+                      }`}
+                    >
+                      {isSubscribed ? "Premium Active" : "Upgrade to Premium"}
+                    </Text>
+                    <Text
+                      className={`text-[14px] mt-0.5 ${
+                        isDark ? "text-gray-300" : "text-gray-600"
+                      }`}
+                    >
+                      {isSubscribed
+                        ? "Enjoy all premium features"
+                        : "$1.00/month - Unlock all features"}
+                    </Text>
+                  </View>
+                </View>
+                <MaterialCommunityIcons
+                  name="chevron-right"
+                  size={20}
+                  color={isDark ? "#9CA3AF" : "#4B5563"}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
           <View className="mb-8">
             <Text
               className={`text-[12px] font-semibold ${isDark ? "text-white" : "text-black"}`}

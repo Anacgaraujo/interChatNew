@@ -8,7 +8,8 @@ import { useEffect, useState } from "react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import { ConvexReactClient } from "convex/react";
 import { ThemeProvider, useTheme } from "@/context/theme-context";
-import { View, Text } from "react-native";
+import { SubscriptionProvider } from "@/context/subscription-context";
+import { View, Text, TouchableOpacity } from "react-native";
 import "../global.css";
 
 import { useMutation } from "convex/react";
@@ -66,13 +67,14 @@ function AppLayout() {
 
   const [isUserSynced, setIsUserSynced] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncAttempts, setSyncAttempts] = useState(0);
 
   if (!isLoaded) return null;
 
   // Effect for syncing user data with Convex
   useEffect(() => {
-    if (isSignedIn && !isUserSynced && !isSyncing) {
-      console.log("Starting user sync with Convex...");
+    if (isSignedIn && !isUserSynced && !isSyncing && syncAttempts < 3) {
+      console.log("Starting user sync with Convex... (attempt", syncAttempts + 1, ")");
       setIsSyncing(true);
       createUserIfMissing()
         .then(() => {
@@ -81,15 +83,16 @@ function AppLayout() {
         })
         .catch((error) => {
           console.error("Failed to sync user with Convex:", error);
-          // If user creation fails, try again after a short delay
-          setTimeout(() => {
-            setIsUserSynced(false);
-            setIsSyncing(false);
-          }, 1000);
+          setSyncAttempts(prev => prev + 1);
+          // If we've tried 3 times, give up and let the user proceed
+          if (syncAttempts >= 2) {
+            console.log("Giving up on user sync, allowing user to proceed");
+            setIsUserSynced(true); // Force it to true to allow navigation
+          }
         })
         .finally(() => setIsSyncing(false));
     }
-  }, [isSignedIn, isUserSynced, isSyncing, createUserIfMissing]);
+  }, [isSignedIn, isUserSynced, isSyncing, createUserIfMissing, syncAttempts]);
 
   // Effect for handling navigation based on auth state
   useEffect(() => {
@@ -103,13 +106,13 @@ function AppLayout() {
       segments: segments.join("/"),
     });
 
-    // If user is signed in and synced, ensure they are in a protected route
-    if (isSignedIn && isUserSynced) {
+    // If user is signed in, ensure they are in a protected route (regardless of sync status)
+    if (isSignedIn) {
       if (!inProtectedRoute) {
         console.log("Redirecting to protected route");
         router.replace("/(protected)/(tabs)");
       }
-    } else if (!isSignedIn) {
+    } else {
       // If user is not signed in, ensure they are in a public route
       if (inProtectedRoute) {
         console.log("Redirecting to public route");
@@ -119,15 +122,13 @@ function AppLayout() {
       if (isUserSynced || isSyncing) {
         setIsUserSynced(false);
         setIsSyncing(false);
+        setSyncAttempts(0);
       }
     }
-  }, [isLoaded, isSignedIn, isUserSynced, segments]);
+  }, [isLoaded, isSignedIn, segments]);
 
-  // Show loader while Clerk is loading, or if user is signed in but still syncing/not_synced
-  if (!isLoaded || (isSignedIn && (isSyncing || !isUserSynced))) {
-    // Consider using your <Loader /> component if you have one for a better UX
-    // e.g. import { Loader } from '@/components/loader'; return <Loader />;
-    // SplashScreen.hideAsync(); // If you used preventAutoHideAsync
+  // Show loader only while Clerk is loading or actively syncing
+  if (!isLoaded || (isSignedIn && isSyncing)) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <Text>Loading...</Text>
@@ -153,7 +154,9 @@ export default function RootLayout() {
       <ClerkLoaded>
         <ThemeProvider>
           <ConvexProviderWithClerk useAuth={useAuth} client={convexClient}>
-            <AppLayout />
+            <SubscriptionProvider>
+              <AppLayout />
+            </SubscriptionProvider>
           </ConvexProviderWithClerk>
         </ThemeProvider>
       </ClerkLoaded>

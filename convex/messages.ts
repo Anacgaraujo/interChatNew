@@ -109,65 +109,17 @@ export const sendMessage = mutation({
       media,
     });
 
-    const chat = await ctx.db.get(chatId);
-    if (!chat) {
-      throw new Error("Chat not found");
-    }
-
-    // Create unread status for all other participants
-    for (const participantId of chat.participants) {
-      if (participantId !== user._id) {
-        await ctx.db.insert("messageStatus", {
-          messageId: messageId,
-          userId: participantId,
-          chatId: chatId,
-          isRead: false,
-        });
-      }
-    }
+    // TODO: Implement message status tracking when messageStatus table is added back
+    console.log(`Message sent: ${messageId}`);
   },
 });
 
 export const markMessageAsRead = mutation({
   args: { chatId: v.id("chats"), messageIds: v.array(v.id("messages")) },
   handler: async (ctx, { chatId, messageIds }) => {
-    // This is a placeholder. You'll need to implement actual read receipts.
-    // For example, you might have a 'readBy' array on messages or a separate 'readReceipts' table.
-    // For now, we'll just acknowledge the call.
+    // TODO: Implement read receipts when messageStatus table is added back
     console.log(
       `Marking messages as read in chat ${chatId}: ${messageIds.join(", ")}`
     );
-    // Example: Update a read receipt for the current user in the chat document
-    // const identity = await ctx.auth.getUserIdentity();
-    // if (!identity) throw new Error("Not authenticated");
-    // const currentUser = await userByExteRnalId(ctx, identity.subject);
-    // await ctx.db.patch(chatId, { lastReadMessageId: messageIds[messageIds.length - 1] });
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Not authenticated");
-    const currentUser = await userByExternalId(ctx, identity.subject);
-    if (!currentUser) throw new Error("User not found");
-
-    // Example: Update messageStatus for each message
-    for (const messageId of messageIds) {
-      const existingStatus = await ctx.db
-        .query("messageStatus")
-        .withIndex("by_messageId_userId", (q) =>
-          q.eq("messageId", messageId).eq("userId", currentUser._id)
-        )
-        .unique();
-
-      if (existingStatus) {
-        if (!existingStatus.isRead) {
-          await ctx.db.patch(existingStatus._id, { isRead: true });
-        }
-      } else {
-        await ctx.db.insert("messageStatus", {
-          messageId,
-          userId: currentUser._id,
-          chatId,
-          isRead: true,
-        });
-      }
-    }
   },
 });

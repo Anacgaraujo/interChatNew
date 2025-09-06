@@ -19,6 +19,7 @@ import type * as general from "../general.js";
 import type * as http from "../http.js";
 import type * as messages from "../messages.js";
 import type * as stories from "../stories.js";
+import type * as subscriptions from "../subscriptions.js";
 import type * as translate from "../translate.js";
 import type * as users from "../users.js";
 
@@ -37,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   messages: typeof messages;
   stories: typeof stories;
+  subscriptions: typeof subscriptions;
   translate: typeof translate;
   users: typeof users;
 }>;
