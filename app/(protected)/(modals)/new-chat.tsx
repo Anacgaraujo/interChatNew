@@ -2,7 +2,7 @@
 import { useTheme } from "@/context/theme-context";
 import { api } from "@/convex/_generated/api";
 import { Doc } from "@/convex/_generated/dataModel";
-import { userByExteRnalId } from "@/convex/users";
+import { userByExternalId } from "@/convex/users";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useMutation, useQuery } from "convex/react";
 import { router } from "expo-router";

@@ -20,7 +20,7 @@ import { useProfile } from "@/hooks/use-profile";
 export interface Story {
   _id: Id<"stories"> | string;
   userId: string;
-  type: "image" | "video";
+  type: "image" | "video" | "text";
   content: {
     media?: string;
     storageId?: string;

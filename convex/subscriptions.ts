@@ -5,7 +5,25 @@ import { getCurrentUserOrThrow } from "./users";
 // Get current user's subscription status
 export const getCurrentUserSubscription = query({
   handler: async (ctx) => {
-    const user = await getCurrentUserOrThrow(ctx);
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (!identity) {
+      throw new Error("Unauthorized");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_externalId", (q) => q.eq("externalId", identity.subject))
+      .unique();
+
+    if (!user) {
+      return {
+        isSubscribed: false,
+        subscriptionExpiresAt: null,
+        subscriptionProductId: null,
+        activeSubscription: null,
+      };
+    }
 
     const activeSubscription = await ctx.db
       .query("subscriptions")
@@ -15,8 +33,8 @@ export const getCurrentUserSubscription = query({
 
     return {
       isSubscribed: user.isSubscribed || false,
-      subscriptionExpiresAt: user.subscriptionExpiresAt,
-      subscriptionProductId: user.subscriptionProductId,
+      subscriptionExpiresAt: user.subscriptionExpiresAt || null,
+      subscriptionProductId: user.subscriptionProductId || null,
       activeSubscription,
     };
   },

@@ -74,7 +74,11 @@ function AppLayout() {
   // Effect for syncing user data with Convex
   useEffect(() => {
     if (isSignedIn && !isUserSynced && !isSyncing && syncAttempts < 3) {
-      console.log("Starting user sync with Convex... (attempt", syncAttempts + 1, ")");
+      console.log(
+        "Starting user sync with Convex... (attempt",
+        syncAttempts + 1,
+        ")"
+      );
       setIsSyncing(true);
       createUserIfMissing()
         .then(() => {
@@ -83,7 +87,7 @@ function AppLayout() {
         })
         .catch((error) => {
           console.error("Failed to sync user with Convex:", error);
-          setSyncAttempts(prev => prev + 1);
+          setSyncAttempts((prev) => prev + 1);
           // If we've tried 3 times, give up and let the user proceed
           if (syncAttempts >= 2) {
             console.log("Giving up on user sync, allowing user to proceed");
@@ -110,7 +114,10 @@ function AppLayout() {
     if (isSignedIn) {
       if (!inProtectedRoute) {
         console.log("Redirecting to protected route");
-        router.replace("/(protected)/(tabs)");
+        // Add a small delay to ensure the session is fully established
+        setTimeout(() => {
+          router.replace("/(protected)/(tabs)");
+        }, 100);
       }
     } else {
       // If user is not signed in, ensure they are in a public route
@@ -130,8 +137,17 @@ function AppLayout() {
   // Show loader only while Clerk is loading or actively syncing
   if (!isLoaded || (isSignedIn && isSyncing)) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <Text>Loading...</Text>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: isDark ? "#1A1C1E" : "#FFFFFF",
+        }}
+      >
+        <Text style={{ color: isDark ? "#FFFFFF" : "#000000", fontSize: 16 }}>
+          {!isLoaded ? "Loading..." : "Syncing user data..."}
+        </Text>
       </View>
     );
   }

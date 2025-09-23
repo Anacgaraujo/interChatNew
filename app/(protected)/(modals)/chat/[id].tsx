@@ -50,8 +50,8 @@ const Chat = () => {
   const markMessageAsRead = useMutation(api.messages.markMessageAsRead);
 
   const myUnreadMessageIds = messages
-    ?.filter((message: MessageWithUser) => message.userId !== user?._id)
-    .map((message: MessageWithUser) => message._id);
+    ?.filter((message: any) => message.userId !== user?._id)
+    .map((message: any) => message._id);
 
   const handleMediaPress = (media: { type: string; url: string }) => {
     setSelectedMedia(media);
@@ -81,7 +81,7 @@ const Chat = () => {
   const chatImage = chat?.image;
 
   const otherParticipant = chat?.participantsInfo.find(
-    (participant: Doc<"users">) => participant._id !== user?._id
+    (participant: any) => participant._id !== user?._id
   );
 
   if (!chat) {
@@ -151,7 +151,7 @@ const Chat = () => {
         {/* messages */}
         <View className="flex-1">
           <FlatList
-            data={messages}
+            data={messages as any}
             ref={flatListRef}
             keyExtractor={(item: MessageWithUser) => item._id} // Explicitly type item
             renderItem={(

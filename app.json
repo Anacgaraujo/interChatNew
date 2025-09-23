@@ -2,7 +2,7 @@
   "expo": {
     "name": "chat-yt",
     "slug": "chat-yt",
-    "version": "2.0.0",
+    "version": "2.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "chat-yt-app",
@@ -10,7 +10,7 @@
     "newArchEnabled": false,
     "ios": {
       "bundleIdentifier": "com.actanaaraujo.chatyt",
-      "buildNumber": "2.0.5",
+      "buildNumber": "2.0.7",
       "supportsTablet": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,

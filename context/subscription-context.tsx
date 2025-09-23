@@ -155,7 +155,7 @@ export const SubscriptionProvider = ({
   const restorePurchases = async () => {
     setIsLoading(true);
     try {
-      const { customerInfo } = await Purchases.restorePurchases();
+      const customerInfo = await Purchases.restorePurchases();
 
       if (customerInfo.entitlements.active["chatyt_premium"]) {
         // Restore successful, update Convex

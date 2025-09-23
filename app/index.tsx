@@ -30,6 +30,8 @@ export default function Index() {
 
   const onPress = useCallback(async () => {
     try {
+      console.log("Starting Google OAuth flow...");
+
       // Start the authentication process by calling `startSSOFlow()`
       const { createdSessionId, setActive, signIn, signUp } =
         await startSSOFlow({
@@ -43,19 +45,47 @@ export default function Index() {
           }),
         });
 
+      console.log("OAuth flow completed:", {
+        createdSessionId,
+        signIn,
+        signUp,
+      });
+
       // If sign in was successful, set the active session
       if (createdSessionId) {
-        setActive!({ session: createdSessionId });
+        console.log("Setting active session:", createdSessionId);
+        await setActive!({ session: createdSessionId });
+        console.log("Session set successfully");
       } else {
         // If there is no `createdSessionId`,
         // there are missing requirements, such as MFA
-        // Use the `signIn` or `signUp` returned from `startSSOFlow`
-        // to handle next steps
+        console.log("No session created, checking signIn/signUp status");
+
+        if (signIn?.status === "complete") {
+          console.log("Sign in complete, setting active session");
+          await setActive!({ session: signIn.createdSessionId });
+        } else if (signUp?.status === "complete") {
+          console.log("Sign up complete, setting active session");
+          await setActive!({ session: signUp.createdSessionId });
+        } else {
+          console.log("Authentication incomplete:", { signIn, signUp });
+          // Handle incomplete authentication
+          if (signIn?.status === "needs_identifier") {
+            console.log("Needs identifier");
+          } else if (signIn?.status === "needs_first_factor") {
+            console.log("Needs first factor");
+          } else if (signUp?.status === "missing_requirements") {
+            console.log("Missing requirements");
+          }
+        }
       }
     } catch (err) {
       // See https://clerk.com/docs/custom-flows/error-handling
       // for more info on error handling
-      console.error(JSON.stringify(err, null, 2));
+      console.error("OAuth error:", JSON.stringify(err, null, 2));
+
+      // Show user-friendly error message
+      alert("Login failed. Please try again.");
     }
   }, []);
 
@@ -65,7 +95,7 @@ export default function Index() {
         <View className="items-center mt-20">
           <Image
             source={require("@/assets/images/chat.png")}
-            className="w-[90%] h-[200px] rounded-2xl mb-1-"
+            className="w-[90%] h-[200px] rounded-2xl mb-1"
           />
           <Text
             className={`${

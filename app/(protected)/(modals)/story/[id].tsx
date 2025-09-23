@@ -35,8 +35,8 @@ const StoryView = () => {
       const userStoryArray = userStories[id as Id<"users">] ?? []; // Cast id to Id<"users">
 
       const sortedStories = [...userStoryArray].sort((a, b) => {
-        const viewedA = a.viewers.includes(user?._id || "");
-        const viewedB = b.viewers.includes(user?._id || "");
+        const viewedA = user?._id ? a.viewers.includes(user._id) : false;
+        const viewedB = user?._id ? b.viewers.includes(user._id) : false;
 
         if (viewedA !== viewedB) {
           // Prioritize unviewed stories
@@ -46,7 +46,7 @@ const StoryView = () => {
         return a.sequence - b.sequence; // Then sort by sequence
       });
 
-      setStories(sortedStories);
+      setStories(sortedStories as any);
     }
   }, [userStories, id, user]);
 
